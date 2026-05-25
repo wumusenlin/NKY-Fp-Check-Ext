@@ -1,0 +1,9 @@
+{
+  "name": "com.get_fp_check_result.ocr",
+  "description": "发票查验插件本地 OCR",
+  "path": "/Users/zhangsenlin/nky/senlin-demo/getFpCheckResult/browser-extension/native-host/host.js",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID/"
+  ]
+}

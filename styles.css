@@ -1,0 +1,174 @@
+:root {
+  --theme: #1bc0cbff;
+  --theme-dark: #129ba5;
+  --theme-soft: #e8fbfc;
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  color: #1f2937;
+  background: #f5fbfc;
+}
+
+body {
+  width: 420px;
+  min-height: 540px;
+  margin: 0;
+  background: #f5fbfc;
+}
+
+.app {
+  padding: 14px 14px 126px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.state {
+  max-width: 140px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--theme-soft);
+  color: var(--theme-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.field span {
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.field span.required {
+  color: var(--theme-dark);
+}
+
+.field span.required::after {
+  content: " *";
+}
+
+input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #111827;
+}
+
+input:focus {
+  border-color: var(--theme);
+  box-shadow: 0 0 0 3px rgba(27, 192, 203, 0.16);
+  outline: 0;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--theme);
+  color: #fff;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #64748b;
+}
+
+button.link-button {
+  min-height: 28px;
+  border: 1px solid rgba(27, 192, 203, 0.38);
+  background: #fff;
+  color: var(--theme-dark);
+  font-weight: 600;
+}
+
+button:disabled {
+  background: #9ca3af;
+  cursor: default;
+}
+
+.manual-form {
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid rgba(27, 192, 203, 0.22);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.read-status {
+  min-height: 18px;
+  margin: 4px 0 8px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: #111827;
+  font-weight: 650;
+}
+
+.hint {
+  margin: 8px 0 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(27, 192, 203, 0.18);
+  border-radius: 6px;
+  background: var(--theme-soft);
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  width: 420px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid rgba(27, 192, 203, 0.2);
+  background: #fff;
+  box-shadow: 0 -8px 22px rgba(27, 192, 203, 0.12);
+}
+
+.footer-url {
+  display: grid;
+  gap: 5px;
+}
+
+.footer-url span {
+  color: #4b5563;
+  font-size: 12px;
+}

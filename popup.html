@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>发票查验</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>发票查验</h1>
+        <span id="state" class="state">未开始</span>
+      </header>
+
+      <section class="manual-form">
+        <div class="section-title">
+          <span>发票信息</span>
+          <button id="readCurrentPage" type="button" class="link-button">读取当前页</button>
+        </div>
+        <p id="readStatus" class="read-status">正在读取当前页数据...</p>
+
+        <label class="field">
+          <span>发票代码</span>
+          <input id="invoiceCode" type="text" placeholder="例：011002100111">
+        </label>
+
+        <label class="field">
+          <span class="required">发票号码</span>
+          <input id="invoiceNumber" type="text" placeholder="例：26112000001697881801">
+        </label>
+
+        <label class="field">
+          <span class="required">开票日期</span>
+          <input id="invoiceDate" type="text" inputmode="numeric" placeholder="例：20260428">
+        </label>
+
+        <label class="field">
+          <span class="required">金额</span>
+          <input id="amountWithoutTax" type="text" inputmode="decimal" placeholder="例：100.00">
+        </label>
+      </section>
+
+      <p id="outputHint" class="hint">保存位置：Chrome 下载目录/fp-check-extension</p>
+    </main>
+
+    <footer class="footer">
+      <label class="footer-url">
+        <span>查验地址</span>
+        <input id="url" type="url" value="https://inv-veri.chinatax.gov.cn/index.html">
+      </label>
+      <section class="toolbar">
+        <button id="start" type="button">开始查验</button>
+        <button id="stop" type="button" class="secondary">停止</button>
+      </section>
+    </footer>
+    <script src="popup.js"></script>
+  </body>
+</html>

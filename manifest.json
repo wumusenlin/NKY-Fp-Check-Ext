@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "NKY发票查验工具",
+  "version": "1.0.1",
+  "description": "在国家税务总局发票查验平台自动填表、手工输入验证码、保存查验结果图片。",
+  "action": {
+    "default_title": "发票查验",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://neikongyi.com/*",
+        "https://neikongyi.com/*",
+        "http://*.neikongyi.com/*",
+        "https://*.neikongyi.com/*",
+        "http://localhost/*",
+        "http://localhost:*/*"
+      ],
+      "js": [
+        "neikongyi-bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://inv-veri.chinatax.gov.cn/*"
+      ],
+      "js": [
+        "vendor/html2canvas.min.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://inv-veri.chinatax.gov.cn/*"
+  ]
+}
