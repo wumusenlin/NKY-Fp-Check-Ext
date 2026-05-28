@@ -11,6 +11,38 @@
 3. 点击“加载已解压的扩展程序”。
 4. 选择本目录：`browser-extension/`。
 
+## 打包 CRX
+
+脚本只会把插件运行需要的文件复制到 `dist/extension-src/`，不会打包 `AGENTS.md`、`.git/`、`native-host/` 等无关文件。
+插件图标位于 `icons/`，打包时会包含 `16`、`32`、`48`、`128` 四个尺寸。
+
+第一次打包：
+
+```bash
+scripts/pack-crx.sh
+```
+
+第一次会生成：
+
+```text
+dist/nky-fp-check-ext-v版本号.crx
+dist/nky-fp-check-ext-v版本号.pem
+```
+
+`.pem` 是插件私钥，必须保存好。后续更新必须继续使用同一个 `.pem`，否则插件 ID 会变。
+
+后续打包：
+
+```bash
+scripts/pack-crx.sh --key path/to/nky-fp-check.pem
+```
+
+如需只检查打包目录内容，不生成 CRX：
+
+```bash
+scripts/pack-crx.sh --prepare-only
+```
+
 ## 使用
 
 1. 在暴露发票数据的页面点击插件图标。
