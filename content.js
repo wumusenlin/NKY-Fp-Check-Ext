@@ -8,27 +8,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleMessage(message) {
-  if (message.type === 'fillInvoice') {
-    await fillInvoiceForm(message.invoice);
+  if (message.type === 'showProcessingNotice') {
+    showProcessingNotice(message.text || '正在打开查验页面，请勿操作页面。', { blockPage: true });
     return { ok: true };
+  }
+  if (message.type === 'hideProcessingNotice') {
+    hideProcessingNotice();
+    return { ok: true };
+  }
+  if (message.type === 'fillInvoice') {
+    return runWithProcessingNotice('正在填充发票信息，请勿操作页面。', async () => {
+      await fillInvoiceForm(message.invoice);
+      return { ok: true };
+    });
   }
   if (message.type === 'prepareCaptcha') {
-    return prepareCaptcha();
+    return runWithProcessingNotice('正在准备验证码，请勿操作页面。', () => prepareCaptcha());
   }
   if (message.type === 'submitCaptcha') {
-    await submitCaptcha(message.captcha);
-    return { ok: true };
+    return runWithProcessingNotice('正在提交查验，请勿操作页面。', async () => {
+      await submitCaptcha(message.captcha);
+      return { ok: true };
+    });
   }
   if (message.type === 'promptCaptcha') {
     await closeTeachYouReminder(500);
     await sleep(300);
+    showCaptchaProcessingNotice('请查看验证码区域，并在弹窗输入验证码。');
     return {
       ok: true,
       captcha: await promptCaptchaInput(message.invoiceNumber, message.reason)
     };
   }
   if (message.type === 'waitForResult') {
-    return waitForResult();
+    return runWithProcessingNotice('正在等待查验结果，请勿操作页面。', () => waitForResult());
   }
   if (message.type === 'readPageMeta') {
     return {
@@ -38,9 +51,226 @@ async function handleMessage(message) {
     };
   }
   if (message.type === 'captureResultImage') {
-    return captureResultImage();
+    return runWithProcessingNotice('正在保存查验结果图片，请勿操作页面。', () => captureResultImage());
   }
   throw new Error(`未知消息：${message.type}`);
+}
+
+async function runWithProcessingNotice(text, task) {
+  showProcessingNotice(text, { blockPage: true });
+  try {
+    return await task();
+  } finally {
+    hideProcessingNotice();
+  }
+}
+
+function showProcessingNotice(text, options = {}) {
+  const { blockPage = true } = options;
+  let overlay = document.querySelector('#fp-check-processing-notice');
+  let style = document.querySelector('#fp-check-processing-style');
+
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'fp-check-processing-style';
+    style.textContent = `
+      #fp-check-processing-notice {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483646;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 88px;
+        box-sizing: border-box;
+        background: rgba(17, 24, 39, 0.28);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      #fp-check-processing-notice.fp-check-notice-passive {
+        pointer-events: none;
+        background: transparent;
+      }
+      #fp-check-processing-notice .fp-check-processing-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 380px;
+        max-width: calc(100vw - 40px);
+        min-height: 56px;
+        box-sizing: border-box;
+        padding: 14px 16px;
+        border-radius: 8px;
+        background: #fff;
+        color: #111827;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+        pointer-events: auto;
+      }
+      #fp-check-processing-notice .fp-check-processing-spinner {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
+        border: 3px solid #dbeafe;
+        border-top-color: #1f6feb;
+        border-radius: 50%;
+        animation: fp-check-spin 0.9s linear infinite;
+      }
+      #fp-check-processing-notice .fp-check-processing-text {
+        font-size: 15px;
+        line-height: 1.45;
+        font-weight: 650;
+      }
+      @keyframes fp-check-spin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.documentElement.append(style);
+  }
+
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'fp-check-processing-notice';
+    overlay.innerHTML = `
+      <div class="fp-check-processing-card">
+        <div class="fp-check-processing-spinner"></div>
+        <div class="fp-check-processing-text"></div>
+      </div>
+    `;
+    document.documentElement.append(overlay);
+  }
+
+  overlay.classList.toggle('fp-check-notice-passive', !blockPage);
+  overlay.querySelector('.fp-check-processing-text').textContent = text;
+}
+
+function hideProcessingNotice() {
+  document.querySelector('#fp-check-processing-notice')?.remove();
+  document.querySelector('#fp-check-processing-style')?.remove();
+  document.querySelector('#fp-check-captcha-page-mask')?.remove();
+  document.querySelector('#fp-check-captcha-mask-style')?.remove();
+}
+
+function showCaptchaProcessingNotice(text) {
+  const target = findCaptchaViewTarget();
+  if (!target) {
+    showProcessingNotice(text, { blockPage: false });
+    return;
+  }
+
+  hideProcessingNotice();
+
+  const style = document.createElement('style');
+  style.id = 'fp-check-captcha-mask-style';
+  style.textContent = `
+    #fp-check-captcha-page-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483645;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      pointer-events: none;
+    }
+    #fp-check-captcha-page-mask .fp-check-mask-piece {
+      position: fixed;
+      background: rgba(17, 24, 39, 0.34);
+      pointer-events: auto;
+    }
+    #fp-check-captcha-page-mask .fp-check-captcha-highlight {
+      position: fixed;
+      box-sizing: border-box;
+      border: 2px solid #1f6feb;
+      border-radius: 6px;
+      box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.16);
+      pointer-events: none;
+    }
+    #fp-check-captcha-page-mask .fp-check-captcha-tip {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 380px;
+      max-width: calc(100vw - 40px);
+      box-sizing: border-box;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: #fff;
+      color: #111827;
+      font-size: 15px;
+      line-height: 1.45;
+      font-weight: 650;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+    }
+  `;
+
+  const mask = document.createElement('div');
+  mask.id = 'fp-check-captcha-page-mask';
+  mask.innerHTML = `
+    <div class="fp-check-mask-piece" data-piece="top"></div>
+    <div class="fp-check-mask-piece" data-piece="left"></div>
+    <div class="fp-check-mask-piece" data-piece="right"></div>
+    <div class="fp-check-mask-piece" data-piece="bottom"></div>
+    <div class="fp-check-captcha-highlight"></div>
+    <div class="fp-check-captcha-tip"></div>
+  `;
+
+  document.documentElement.append(style);
+  document.documentElement.append(mask);
+  mask.querySelectorAll('.fp-check-mask-piece').forEach((piece) => {
+    ['click', 'mousedown', 'mouseup', 'wheel', 'touchmove'].forEach((type) => {
+      piece.addEventListener(type, (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }, { passive: false });
+    });
+  });
+  mask.querySelector('.fp-check-captcha-tip').textContent = text;
+  updateCaptchaMaskRect(target);
+}
+
+function updateCaptchaMaskRect(target) {
+  const mask = document.querySelector('#fp-check-captcha-page-mask');
+  if (!mask) {
+    return;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const padding = 12;
+  const top = Math.max(0, rect.top - padding);
+  const left = Math.max(0, rect.left - padding);
+  const right = Math.min(window.innerWidth, rect.right + padding);
+  const bottom = Math.min(window.innerHeight, rect.bottom + padding);
+  const width = Math.max(0, right - left);
+  const height = Math.max(0, bottom - top);
+
+  setFixedRect(mask.querySelector('[data-piece="top"]'), 0, 0, window.innerWidth, top);
+  setFixedRect(mask.querySelector('[data-piece="left"]'), 0, top, left, height);
+  setFixedRect(mask.querySelector('[data-piece="right"]'), right, top, window.innerWidth - right, height);
+  setFixedRect(mask.querySelector('[data-piece="bottom"]'), 0, bottom, window.innerWidth, window.innerHeight - bottom);
+  setFixedRect(mask.querySelector('.fp-check-captcha-highlight'), left, top, width, height);
+
+  const tip = mask.querySelector('.fp-check-captcha-tip');
+  const tipTop = top > 88 ? top - 74 : Math.min(window.innerHeight - 70, bottom + 14);
+  tip.style.top = `${Math.max(12, tipTop)}px`;
+}
+
+function setFixedRect(node, left, top, width, height) {
+  node.style.left = `${left}px`;
+  node.style.top = `${top}px`;
+  node.style.width = `${Math.max(0, width)}px`;
+  node.style.height = `${Math.max(0, height)}px`;
+}
+
+function findCaptchaViewTarget() {
+  return (
+    findVisibleElement('#yzm_img') ||
+    findVisibleElement('#imgarea img') ||
+    findVisibleElement('#imgarea')
+  );
+}
+
+function findVisibleElement(selector) {
+  return Array.from(document.querySelectorAll(selector)).find((element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && element.getClientRects().length > 0;
+  }) || null;
 }
 
 async function fillInvoiceForm(invoice) {
@@ -97,18 +327,30 @@ async function closeTeachYouReminder(timeoutMs = 0) {
 }
 
 function clickElement(element) {
-  if (window.jQuery) {
-    window.jQuery(element).trigger('click');
-    return;
+  const shouldBlockDefault = isJavaScriptUrlElement(element);
+  const blockDefault = (event) => event.preventDefault();
+  if (shouldBlockDefault) {
+    element.addEventListener('click', blockDefault, { capture: true, once: true });
   }
 
-  for (const type of ['mouseover', 'mousedown', 'mouseup', 'click']) {
-    element.dispatchEvent(new MouseEvent(type, {
-      bubbles: true,
-      cancelable: true,
-      view: window
-    }));
+  try {
+    for (const type of ['mouseover', 'mousedown', 'mouseup', 'click']) {
+      element.dispatchEvent(new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      }));
+    }
+  } finally {
+    if (shouldBlockDefault) {
+      element.removeEventListener('click', blockDefault, { capture: true });
+    }
   }
+}
+
+function isJavaScriptUrlElement(element) {
+  const href = element?.getAttribute?.('href') || '';
+  return /^\s*javascript:/i.test(href);
 }
 
 async function refreshCaptcha() {
@@ -235,6 +477,7 @@ function promptCaptchaInput(invoiceNumber, reason) {
     const close = (value) => {
       overlay.remove();
       style.remove();
+      hideProcessingNotice();
       resolve(String(value || '').trim());
     };
 
@@ -243,6 +486,7 @@ function promptCaptchaInput(invoiceNumber, reason) {
       refresh.textContent = '刷新中';
       try {
         await refreshCaptcha();
+        showCaptchaProcessingNotice('请查看验证码区域，并在弹窗输入验证码。');
         input.value = '';
         input.focus();
       } catch (error) {
@@ -280,11 +524,7 @@ async function submitCaptcha(captcha) {
   if (!button) {
     throw new Error('页面缺少查验按钮：#checkfp');
   }
-  if (window.jQuery) {
-    window.jQuery(button).trigger('click');
-  } else {
-    button.click();
-  }
+  clickElement(button);
 }
 
 async function waitForResult() {

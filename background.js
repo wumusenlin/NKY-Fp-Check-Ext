@@ -1,4 +1,5 @@
 const DEFAULT_URL = 'https://inv-veri.chinatax.gov.cn/index.html';
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let currentJob = null;
 let stopRequested = false;
@@ -12,7 +13,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === 'startVerifyFromNeikongyi') {
-    startJob(readNeikongyiInvoices(message), message.url || DEFAULT_URL, '内控易')
+    startJob(readNeikongyiInvoices(message), message.url || DEFAULT_URL, '内控易', {
+      uploadTabId: sender.tab?.id || null
+    })
       .then(sendResponse)
       .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
     return true;
@@ -32,7 +35,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-async function startJob(invoices, url, source = '') {
+async function startJob(invoices, url, source = '', options = {}) {
   if (currentJob?.running) {
     return { ok: false, error: '已有查验任务在运行。' };
   }
@@ -50,12 +53,13 @@ async function startJob(invoices, url, source = '') {
     success: 0,
     failed: 0,
     logs: [],
-    summary: []
+    summary: [],
+    uploadTabId: options.uploadTabId || null
   };
   if (source) {
     appendLog(`来源：${source}`);
   }
-  runJob(invoices, url).catch((error) => {
+  runJob(invoices, url, options).catch((error) => {
     appendLog(`任务失败：${error.message || String(error)}`);
     currentJob.running = false;
     currentJob.state = '失败';
@@ -104,7 +108,7 @@ function normalizeIncomingInvoice(row) {
   };
 }
 
-async function runJob(invoices, url) {
+async function runJob(invoices, url, options = {}) {
   const tab = await openOrReuseTaxTab(url);
   for (let index = 0; index < invoices.length; index += 1) {
     if (stopRequested) {
@@ -115,8 +119,8 @@ async function runJob(invoices, url) {
     const invoice = invoices[index];
     appendLog(`[${index + 1}/${invoices.length}] ${invoice.invoiceNumber}`);
     await chrome.tabs.update(tab.id, { active: true, url });
-    await waitForTabComplete(tab.id);
-    const result = await verifyOne(tab.id, invoice, index);
+    await showNoticeAfterNavigation(tab.id, '正在打开查验页面，请勿操作页面。');
+    const result = await verifyOne(tab.id, invoice, index, options);
     currentJob.summary.push({
       invoiceNumber: invoice.invoiceNumber,
       status: result.status,
@@ -137,7 +141,23 @@ async function runJob(invoices, url) {
   appendLog(`保存位置：${currentJob.outputHint}`);
 }
 
-async function verifyOne(tabId, invoice, index) {
+async function showNoticeAfterNavigation(tabId, text) {
+  let completed = false;
+  const completePromise = waitForTabComplete(tabId).then(() => {
+    completed = true;
+  });
+  const started = Date.now();
+
+  while (!completed && Date.now() - started < 15000) {
+    await chrome.tabs.sendMessage(tabId, { type: 'showProcessingNotice', text }).catch(() => null);
+    await sleep(120);
+  }
+
+  await completePromise;
+  await chrome.tabs.sendMessage(tabId, { type: 'showProcessingNotice', text }).catch(() => null);
+}
+
+async function verifyOne(tabId, invoice, index, options = {}) {
   try {
     await sendToTab(tabId, { type: 'fillInvoice', invoice });
     await sendToTab(tabId, { type: 'prepareCaptcha' });
@@ -149,18 +169,18 @@ async function verifyOne(tabId, invoice, index) {
     const captcha = prompted.captcha || '';
 
     if (!captcha) {
-      return saveResult(tabId, index, invoice, 'skipped', '用户跳过当前发票。');
+      return saveResult(tabId, index, invoice, 'skipped', '用户跳过当前发票。', {}, options);
     }
 
     await sendToTab(tabId, { type: 'submitCaptcha', captcha });
     const result = await sendToTab(tabId, { type: 'waitForResult' });
-    return saveResult(tabId, index, invoice, 'success', '', result);
+    return saveResult(tabId, index, invoice, 'success', '', result, options);
   } catch (error) {
-    return saveResult(tabId, index, invoice, 'failed', error.message || String(error));
+    return saveResult(tabId, index, invoice, 'failed', error.message || String(error), {}, options);
   }
 }
 
-async function saveResult(tabId, index, invoice, status, errorMessage, result = {}) {
+async function saveResult(tabId, index, invoice, status, errorMessage, result = {}, options = {}) {
   const checkedAt = new Date().toISOString();
   const page = await sendToTab(tabId, { type: 'readPageMeta' }).catch(() => ({}));
   const meta = {
@@ -181,17 +201,43 @@ async function saveResult(tabId, index, invoice, status, errorMessage, result = 
     ok: false,
     error: error.message || String(error)
   }));
+  let dataUrl = '';
+  let filename = '';
   if (capture?.dataUrl) {
-    await downloadDataUrl(buildFileName(index, invoice, 'result-modal-full.png'), capture.dataUrl);
-    appendLog(`${invoice.invoiceNumber}: 已保存 ${buildFileName(index, invoice, 'result-modal-full.png')}`);
+    dataUrl = capture.dataUrl;
+    filename = buildFileName(index, invoice, 'result-modal-full.png');
+    await downloadDataUrl(filename, dataUrl);
+    appendLog(`${invoice.invoiceNumber}: 已保存 ${filename}`);
   } else {
-    const screenshot = await chrome.tabs.captureVisibleTab(undefined, { format: 'png' });
-    await downloadDataUrl(buildFileName(index, invoice, 'result-page.png'), screenshot);
+    dataUrl = await chrome.tabs.captureVisibleTab(undefined, { format: 'png' });
+    filename = buildFileName(index, invoice, 'result-page.png');
+    await downloadDataUrl(filename, dataUrl);
     appendLog(`${invoice.invoiceNumber}: html2canvas 失败：${capture?.error || 'unknown'}`);
-    appendLog(`${invoice.invoiceNumber}: 已保存 ${buildFileName(index, invoice, 'result-page.png')}`);
+    appendLog(`${invoice.invoiceNumber}: 已保存 ${filename}`);
   }
+  await uploadResultImageToSourceTab(options.uploadTabId, invoice, filename, dataUrl);
   appendLog(`${invoice.invoiceNumber}: ${status}`);
   return meta;
+}
+
+async function uploadResultImageToSourceTab(tabId, invoice, filename, dataUrl) {
+  if (!tabId || !dataUrl) {
+    return;
+  }
+
+  try {
+    await chrome.tabs.update(tabId, { active: true });
+    const response = await sendToTab(tabId, {
+      type: 'uploadResultImage',
+      invoice,
+      filename,
+      dataUrl,
+      selector: '.ant-upload.ant-upload-drag'
+    });
+    appendLog(`${invoice.invoiceNumber}: 已回传上传控件 ${response.fileName || filename}`);
+  } catch (error) {
+    appendLog(`${invoice.invoiceNumber}: 回传上传控件失败：${error.message || String(error)}`);
+  }
 }
 
 async function openOrReuseTaxTab(url) {
