@@ -80,12 +80,24 @@ function normalizeIncomingInvoice(row) {
     }
     return '';
   };
+  const total = pick([
+    'total',
+    'fpAmount',
+    '价税合计',
+    '合计金额',
+    'amount',
+    'amountWithoutTax',
+    'kjje',
+    '开具金额',
+    '金额',
+    '不含税金额'
+  ]).replace(/,/g, '');
 
   return {
     invoiceCode: pick(['invoiceCode', 'fpdm', '发票代码']),
     invoiceNumber: pick(['invoiceNumber', 'fphm', '发票号码']),
     invoiceDate: pick(['invoiceDate', 'kprq', 'fpDate', '开票日期']).replace(/\D/g, '').slice(0, 8),
-    amountWithoutTax: pick(['amountWithoutTax', 'kjje', 'fpAmount', '开具金额', '金额', '不含税金额']).replace(/,/g, ''),
+    total,
     checkCode: pick(['checkCode', '校验码']),
     note: pick(['note', '备注']),
     raw: row

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NKY发票查验工具",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "在国家税务总局发票查验平台自动填表、手工输入验证码、保存查验结果图片。",
   "action": {
     "default_title": "发票查验",

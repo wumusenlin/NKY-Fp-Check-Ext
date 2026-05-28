@@ -6,7 +6,7 @@ const elements = {
   invoiceCode: document.querySelector('#invoiceCode'),
   invoiceNumber: document.querySelector('#invoiceNumber'),
   invoiceDate: document.querySelector('#invoiceDate'),
-  amountWithoutTax: document.querySelector('#amountWithoutTax'),
+  total: document.querySelector('#total'),
   start: document.querySelector('#start'),
   stop: document.querySelector('#stop'),
   state: document.querySelector('#state'),
@@ -63,11 +63,13 @@ function normalizeInvoice(row) {
     }
     return '';
   };
+  const total = pick(['total', 'fpAmount', '价税合计', '合计金额', 'amount', 'amountWithoutTax', 'kjje', '开具金额', '金额', '不含税金额']).replace(/,/g, '');
+
   return {
     invoiceCode: pick(['invoiceCode', 'fpdm', '发票代码']),
     invoiceNumber: pick(['invoiceNumber', 'fphm', '发票号码']),
     invoiceDate: pick(['invoiceDate', 'kprq', 'fpDate', '开票日期']).replace(/\D/g, '').slice(0, 8),
-    amountWithoutTax: pick(['amountWithoutTax', 'kjje', '开具金额', '金额', '不含税金额']).replace(/,/g, ''),
+    total,
     checkCode: pick(['checkCode', '校验码']),
     note: pick(['note', '备注']),
     raw: row
@@ -79,7 +81,7 @@ function readInvoiceFromForm() {
     invoiceCode: elements.invoiceCode.value.trim(),
     invoiceNumber: elements.invoiceNumber.value.trim(),
     invoiceDate: elements.invoiceDate.value.replace(/\D/g, '').slice(0, 8),
-    amountWithoutTax: elements.amountWithoutTax.value.replace(/,/g, '').trim(),
+    total: elements.total.value.replace(/,/g, '').trim(),
     checkCode: '',
     note: '',
     raw: {
@@ -107,6 +109,7 @@ async function readCurrentPageInvoice(options = {}) {
             invoiceCode: window.invoiceCode,
             invoiceNumber: window.invoiceNumber,
             fpDate: window.fpDate,
+            total: window.total,
             fpAmount: window.fpAmount,
             checkCode: window.checkCode
           });
@@ -115,7 +118,7 @@ async function readCurrentPageInvoice(options = {}) {
             invoiceCode: window.invoiceCode || '',
             invoiceNumber: window.invoiceNumber || '',
             invoiceDate: window.fpDate || '',
-            amountWithoutTax: window.fpAmount || '',
+            total: window.total || window.fpAmount || '',
             checkCode: window.checkCode || '',
             debugWindowKeys: Object.keys(window).slice(0, 300)
           };
@@ -127,7 +130,7 @@ async function readCurrentPageInvoice(options = {}) {
       invoiceCode: result?.result?.invoiceCode,
       invoiceNumber: result?.result?.invoiceNumber,
       fpDate: result?.result?.invoiceDate,
-      amountWithoutTax: result?.result?.amountWithoutTax,
+      total: result?.result?.total,
       checkCode: result?.result?.checkCode
     });
 
@@ -153,8 +156,8 @@ function fillForm(invoice) {
   if (invoice.invoiceDate) {
     elements.invoiceDate.value = invoice.invoiceDate;
   }
-  if (invoice.amountWithoutTax) {
-    elements.amountWithoutTax.value = invoice.amountWithoutTax;
+  if (invoice.total) {
+    elements.total.value = invoice.total;
   }
 }
 
@@ -162,7 +165,7 @@ function validateInvoice(invoice) {
   const missing = [];
   if (!invoice.invoiceNumber) missing.push('发票号码');
   if (!invoice.invoiceDate) missing.push('开票日期');
-  if (!invoice.amountWithoutTax) missing.push('金额');
+  if (!invoice.total) missing.push('金额');
   return missing;
 }
 

@@ -47,7 +47,7 @@ async function fillInvoiceForm(invoice) {
   await setFieldValue('#fpdm', invoice.invoiceCode || '', true);
   await setFieldValue('#fphm', invoice.invoiceNumber || '');
   await setFieldValue('#kprq', invoice.invoiceDate || '');
-  await setFieldValue('#kjje', invoice.amountWithoutTax || invoice.checkCode || '');
+  await setFieldValue('#kjje', invoice.total || invoice.amountWithoutTax || invoice.checkCode || '');
   await sleep(200);
   await closeTeachYouReminder(500);
 }
