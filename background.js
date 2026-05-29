@@ -232,7 +232,7 @@ async function uploadResultImageToSourceTab(tabId, invoice, filename, dataUrl) {
       invoice,
       filename,
       dataUrl,
-      selector: '.ant-upload.ant-upload-drag'
+      selector: '#fp-check-upload-credential'
     });
     appendLog(`${invoice.invoiceNumber}: 已回传上传控件 ${response.fileName || filename}`);
   } catch (error) {
